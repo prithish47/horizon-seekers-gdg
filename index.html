@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Reliability Simulator</title>
+    <style>
+        body {
+            font-family: monospace;
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            background: #f0f0f0;
+        }
+
+        .card {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+
+        input,
+        select,
+        button {
+            width: 100%;
+            padding: 0.5rem;
+            font-family: monospace;
+            margin-bottom: 0.5rem;
+        }
+
+        button {
+            cursor: pointer;
+            background: #007bff;
+            color: white;
+            border: none;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        button.retry {
+            background: #ffc107;
+            color: black;
+        }
+
+        button.retry:hover {
+            background: #e0a800;
+        }
+
+        .log-panel {
+            background: #222;
+            color: #0f0;
+            padding: 1rem;
+            border-radius: 8px;
+            height: 300px;
+            overflow-y: auto;
+            font-size: 0.9em;
+        }
+
+        .log-entry {
+            margin-bottom: 0.5rem;
+            border-bottom: 1px solid #333;
+            padding-bottom: 0.2rem;
+        }
+
+        .timestamp {
+            color: #888;
+            margin-right: 0.5rem;
+        }
+
+        .success {
+            color: #0f0;
+        }
+
+        .error {
+            color: #f55;
+        }
+
+        .warning {
+            color: #fc0;
+        }
+
+        .info {
+            color: #8cf;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Payment Reliability Simulator</h1>
+
+    <div class="card">
+        <div class="form-group">
+            <label for="amount">Amount</label>
+            <input type="number" id="amount" value="100">
+        </div>
+
+        <div class="form-group">
+            <label for="outcome">Simulate Outcome</label>
+            <select id="outcome">
+                <option value="SUCCESS">Success (Standard)</option>
+                <option value="BANK_FAILURE">Bank Failure (Transient Error)</option>
+                <option value="NETWORK_ERROR">Network Error (Lost Response)</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Idempotency Key</label>
+            <input type="text" id="idempotencyKey" readonly style="background: #eee; color: #555;">
+        </div>
+
+        <button id="payBtn" onclick="initiatePayment()">Pay</button>
+        <button id="retryBtn" class="retry" onclick="retryPayment()" style="display: none;">Retry (Same Key)</button>
+        <button onclick="newTransaction()" style="background: #6c757d; margin-top: 0.5rem;">New Transaction</button>
+    </div>
+
+    <div class="log-panel" id="logPanel">
+        <!-- Logs appear here -->
+    </div>
+
+    <script>
+        // Generate UUID v4
+        function uuidv4() {
+            return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, c =>
+                (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+            );
+        }
+
+        function log(message, type = 'info') {
+            const panel = document.getElementById('logPanel');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            const time = new Date().toLocaleTimeString();
+            entry.innerHTML = `<span class="timestamp">[${time}]</span> ${message}`;
+            panel.appendChild(entry);
+            panel.scrollTop = panel.scrollHeight;
+        }
+
+        function newTransaction() {
+            document.getElementById('idempotencyKey').value = uuidv4();
+            document.getElementById('retryBtn').style.display = 'none';
+            document.getElementById('payBtn').style.display = 'block';
+            log('--- Starting New Transaction ---', 'info');
+        }
+
+        async function retryPayment() {
+            // Alias for initiatePayment but clearer UI intent
+            initiatePayment();
+        }
+
+        async function initiatePayment() {
+            const amount = parseInt(document.getElementById('amount').value);
+            const key = document.getElementById('idempotencyKey').value;
+            const outcome = document.getElementById('outcome').value;
+
+            if (!key) {
+                newTransaction();
+                return initiatePayment(); // Recursive call once key is set
+            }
+
+            log(`Sending request... Amount: $${amount}, Key: ...${key.slice(-8)}, Outcome: ${outcome}`, 'info');
+
+            const payload = {
+                idempotency_key: key,
+                amount: amount,
+                simulate_outcome: outcome
+            };
+
+            try {
+                const response = await fetch('/pay', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.status === 504) {
+                    throw new Error("504 Gateway Timeout (Network Error Simulated)");
+                }
+
+                // Allow transient errors (like 502 for Bank Failure) to be parsed
+                const data = await response.json();
+
+                if (response.ok) {
+                    log(`Response: ${data.message}`, 'success');
+                    log(`State: ${data.state}`, 'success');
+                    log(`Transaction ID: ${data.transaction_id}`, 'success');
+                    // If success, typically we don't need retry, but for demo we can leave it
+                    // Or hide retry if completed? 
+                    // To demonstrate idempotency, we can allow clicking Pay again or Retry.
+                    document.getElementById('retryBtn').innerText = "Resend (Verify Idempotency)";
+                    document.getElementById('retryBtn').style.display = 'block';
+                    document.getElementById('payBtn').style.display = 'none';
+                } else {
+                    // Application level error (e.g. Bank Failure or 409 or 400)
+                    log(`Error ${response.status}: ${data.message}`, 'error');
+                    if (data.state === 'FAILED' || data.state === 'PROCESSING' || response.status === 502) {
+                        document.getElementById('retryBtn').innerText = "Retry Payment";
+                        document.getElementById('retryBtn').style.display = 'block';
+                        document.getElementById('payBtn').style.display = 'none';
+                    }
+                }
+
+            } catch (error) {
+                // Network errors (fetch failure) or manually thrown 504
+                log(`Network Error: ${error.message}`, 'warning');
+                log(`Simulated connection loss. Please retry manually.`, 'warning');
+                document.getElementById('retryBtn').innerText = "Retry Payment";
+                document.getElementById('retryBtn').style.display = 'block';
+                document.getElementById('payBtn').style.display = 'none';
+            }
+        }
+
+        // Initialize on load
+        window.onload = newTransaction;
+    </script>
+</body>
+
+</html>
