@@ -53,7 +53,9 @@ export default function SummaryTable({ transactions }) {
                                         )}
                                     </div>
                                 </td>
-                                <td className="px-10 py-8 font-black text-black tracking-tight text-lg">{tx.intent}</td>
+                                <td className="px-10 py-8 font-black text-black tracking-tight text-lg">
+                                    {tx.intent.replace(/\$/g, '₹')}
+                                </td>
                                 <td className="px-10 py-8 font-black font-mono text-[12px] text-black">
                                     [{tx.attempts.toString().padStart(2, '0')}]
                                 </td>

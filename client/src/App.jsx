@@ -44,13 +44,14 @@ export default function App() {
           state: newState,
           attempts: updated[existingIndex].attempts + 1,
           transactionId: data?.transaction_id || updated[existingIndex].transactionId,
-          cached: isCached || updated[existingIndex].cached
+          cached: isCached || updated[existingIndex].cached,
+          intent: `Payment ₹${amount}`
         };
         return updated;
       } else {
         return [{
           id: crypto.randomUUID(),
-          intent: `Payment $${amount}`,
+          intent: `Payment ₹${amount}`,
           state: newState,
           attempts: 1,
           transactionId: data?.transaction_id || '',
@@ -72,7 +73,7 @@ export default function App() {
       if (!prev.find(t => t.key === key)) {
         return [{
           id: crypto.randomUUID(),
-          intent: `Payment $${amount}`,
+          intent: `Payment ₹${amount}`,
           state: 'PROCESSING',
           attempts: 0,
           transactionId: '',
@@ -158,7 +159,7 @@ export default function App() {
             <RefreshCw className={`w-4 h-4 ${isProcessing ? 'animate-spin' : ''}`} />
             New Transaction
           </button>
-          <div className="px-6 py-3 border-4 border-black bg-black text-white flex items-center gap-3">
+          <div className="px-6 py-3 border-4 border-black bg-green-600 text-white flex items-center gap-3">
             <div className="w-2.5 h-2.5 bg-white rounded-full animate-pulse" />
             <span className="text-xs font-black uppercase tracking-[0.2em]">System Live</span>
           </div>
