@@ -1,6 +1,7 @@
 export async function initiatePayment(request) {
+    const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
     try {
-        const response = await fetch('/pay', {
+        const response = await fetch(`${API_BASE}/pay`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(request)
