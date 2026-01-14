@@ -221,5 +221,5 @@ async def process_payment(payment: PaymentRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    print("Starting server at http://0.0.0.0:8000")
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    print("Starting server at http://127.0.0.1:8000")
+    uvicorn.run(app, host="127.0.0.1", port=8000)
