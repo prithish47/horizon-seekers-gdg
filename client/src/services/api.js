@@ -1,7 +1,9 @@
 export async function initiatePayment(request) {
     const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+    const cleanBase = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE;
+    console.log(`[API] Fetching: ${cleanBase}/pay`);
     try {
-        const response = await fetch(`${API_BASE}/pay`, {
+        const response = await fetch(`${cleanBase}/pay`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(request)
