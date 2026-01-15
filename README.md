@@ -33,15 +33,6 @@ Infra: (Render Deployment)
 Protocol: REST  
 Pattern: Exactly-Once Semantics + Idempotency  
 
-## 🧪 How to Run (Local)
-(Commands listed simply)
-
-## 🌐 Live Demo
-(Place Render URLs)
-
-## 📸 Screenshots
-(UI screenshots – REQUIRED)
-
 ## 🧠 System Behavior
 Bullet examples of:
 - Success
@@ -50,7 +41,7 @@ Bullet examples of:
 - Network failure
 - Fingerprint mismatch
 
-## 🧠 Innovation Highlights (Judges LOVE this)
+## 🧠 Innovation Highlights
 - Intent fingerprinting
 - State-aware retries
 - Idempotency key protocol
