@@ -102,6 +102,15 @@ async def process_payment(payment: PaymentRequest):
     key = payment.idempotency_key
     amount = payment.amount
     outcome = payment.simulate_outcome
+    
+    # VALIDATION: Check if amount is valid (greater than 0)
+    if amount <= 0:
+        logger.warning(f"Invalid amount: {amount}")
+        return JSONResponse(
+            content={"message": "Please enter a valid amount to proceed", "state": "INVALID"},
+            status_code=400
+        )
+    
     current_fingerprint = generate_fingerprint(key, amount)
     
     logger.info(f"Received payment request: Key='{key}', Amount={amount}, Outcome='{outcome}'")
@@ -116,23 +125,29 @@ async def process_payment(payment: PaymentRequest):
 
         if existing_record:
             stored_fingerprint = existing_record['request_fingerprint']
+            stored_amount = existing_record['amount']
             state = existing_record['state']
             
             # --- FINGERPRINT VALIDATION ---
-            # Validation: Amount + Key (Outcome is excluded from fingerprint to allow retrying with different outcome)
+            # Check if the request parameters (key + amount) match
             if stored_fingerprint and stored_fingerprint != current_fingerprint:
-                logger.warning(f"Fingerprint mismatch for Key='{key}'.")
+                logger.warning(f"Fingerprint mismatch for Key='{key}'. Original amount: {stored_amount}, New amount: {amount}")
                 return JSONResponse(
-                    content={"message": "Idempotency key reuse with different request data is not allowed"},
-                    status_code=400
+                    content={
+                        "message": f"Cannot reuse idempotency key with different amount. Original: ₹{stored_amount}, Requested: ₹{amount}",
+                        "state": "CONFLICT",
+                        "original_amount": stored_amount,
+                        "requested_amount": amount
+                    },
+                    status_code=409
                 )
             
             logger.info(f"Duplicate request detected for Key='{key}'. Current State: {state}")
 
             if state == 'COMPLETED':
-                # Return cached response with updated message
+                # Return cached response
                 transaction_id = existing_record['transaction_id']
-                logger.info(f"Transaction is already completed with the already done transaction key: {transaction_id}")
+                logger.info(f"Transaction already completed with transaction ID: {transaction_id}")
                 
                 response_data = json.loads(existing_record['response_body'])
                 response_data['message'] = "Transaction already performed"
@@ -221,17 +236,10 @@ async def process_payment(payment: PaymentRequest):
         raise he
     except Exception as e:
         logger.error(f"Error processing payment: {e}")
-        # Only rollback if we haven't committed the final state? 
-        # Actually standard practice is to rollback on error, but we carefully committed steps.
-        # If the UPDATE to COMPLETED failed, we want rollback.
-        # If it succeeded but the "NETWORK_ERROR" raise happened, the data is safe.
-        # We need to be careful not to rollback the 'COMPLETED' state if we intended to save it.
-        # In the NETWORK_ERROR case, we successfully committed, then raised HTTPException. 
-        # The 'finally' block handles close. 
-        # The 'except Exception' block won't catch HTTPException (it inherits from Exception but FastAPI handles it? No, generic Exception catches it).
-        # We should catch HTTPException separately above.
         conn.rollback()
         raise HTTPException(status_code=500, detail="Internal Server Error")
+    finally:
+        conn.close()
 
 if __name__ == "__main__":
     import uvicorn

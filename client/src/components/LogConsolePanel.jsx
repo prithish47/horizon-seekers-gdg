@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { Terminal, Cpu, Shield, Activity } from 'lucide-react';
+import { Terminal, Activity, CheckCircle, XCircle, AlertTriangle, Info } from 'lucide-react';
 
 export default function LogConsolePanel({ logs }) {
     const endRef = useRef(null);
@@ -8,58 +8,86 @@ export default function LogConsolePanel({ logs }) {
         endRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [logs]);
 
-    return (
-        <div className="flex flex-col h-full bg-white group overflow-hidden">
-            <div className="bg-white px-8 py-6 border-b-4 border-black flex justify-between items-center relative overflow-hidden">
-                {/* Simple moving scan bar */}
-                <div className="absolute top-0 left-0 w-full h-1 bg-black/5 animate-[scan_4s_linear_infinite] pointer-events-none" />
+    const getLogIcon = (type) => {
+        switch (type) {
+            case 'success': return CheckCircle;
+            case 'error': return XCircle;
+            case 'warning': return AlertTriangle;
+            default: return Info;
+        }
+    };
 
-                <h3 className="text-black font-black text-sm uppercase tracking-[0.4em] flex items-center gap-4 relative z-10">
-                    <Terminal className="w-6 h-6" strokeWidth={3} />
-                    System.Logs
-                </h3>
-                <div className="flex items-center gap-6 relative z-10">
-                    <div className="flex items-center gap-2 px-4 py-2 bg-black text-white text-[10px] font-black uppercase tracking-[0.3em]">
-                        {logs.length} EVT
+    return (
+        <div className="flex flex-col h-full bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-slate-50 to-slate-100 px-6 py-4 border-b border-slate-200 flex justify-between items-center">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-white rounded-lg shadow-sm">
+                        <Terminal className="w-5 h-5 text-slate-700" />
+                    </div>
+                    <div>
+                        <h3 className="text-sm font-bold text-slate-900">System Logs</h3>
+                        <p className="text-xs text-slate-500">Real-time activity monitor</p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-3">
+                    <div className="badge badge-info">
+                        {logs.length} events
                     </div>
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-8 font-mono text-[12px] space-y-6 bg-white">
+            {/* Log content */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-3 bg-slate-50">
                 {logs.length === 0 && (
-                    <div className="flex flex-col items-center justify-center h-full text-slate-200 space-y-8">
-                        <Activity className="w-16 h-16 opacity-20" strokeWidth={3} />
-                        <div className="uppercase tracking-[0.5em] text-[12px] font-black italic text-slate-300">Awaiting Data Stream...</div>
+                    <div className="flex flex-col items-center justify-center h-full text-slate-400 space-y-4">
+                        <Activity className="w-12 h-12 opacity-20" />
+                        <div className="text-sm font-medium">No activity yet</div>
+                        <div className="text-xs text-slate-400">Logs will appear here when you initiate a payment</div>
                     </div>
                 )}
-                {logs.map((log) => (
-                    <div key={log.id} className="relative pl-10">
-                        <div className={`absolute left-0 top-1.5 bottom-1.5 w-1.5 ${log.type === 'error' ? 'bg-red-600' :
-                            log.type === 'success' ? 'bg-green-600' :
-                                log.type === 'warning' ? 'bg-amber-500' :
-                                    'bg-black'
-                            }`} />
+                {logs.map((log) => {
+                    const Icon = getLogIcon(log.type);
 
-                        <div className="flex justify-between items-baseline mb-2">
-                            <span className="text-slate-300 text-[10px] font-black uppercase tracking-tighter">{log.timestamp}</span>
-                            <div className={`flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] font-mono ${log.type === 'error' ? 'text-red-600' :
-                                log.type === 'success' ? 'text-green-600' :
-                                    log.type === 'warning' ? 'text-amber-600' :
-                                        'text-black'
-                                }`}>
-                                [{log.type.toUpperCase()}]
+                    return (
+                        <div
+                            key={log.id}
+                            className={`animate-slide-in bg-white rounded-lg p-4 border-l-4 shadow-sm ${log.type === 'error' ? 'border-red-500' :
+                                    log.type === 'success' ? 'border-green-500' :
+                                        log.type === 'warning' ? 'border-amber-500' :
+                                            'border-blue-500'
+                                }`}
+                        >
+                            <div className="flex items-start gap-3">
+                                <div className={`mt-0.5 ${log.type === 'error' ? 'text-red-600' :
+                                        log.type === 'success' ? 'text-green-600' :
+                                            log.type === 'warning' ? 'text-amber-600' :
+                                                'text-blue-600'
+                                    }`}>
+                                    <Icon className="w-4 h-4" />
+                                </div>
+
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center justify-between gap-2 mb-1">
+                                        <span className="text-xs font-mono text-slate-400">
+                                            {log.timestamp}
+                                        </span>
+                                        <span className={`text-xs font-semibold uppercase ${log.type === 'error' ? 'text-red-600' :
+                                                log.type === 'success' ? 'text-green-600' :
+                                                    log.type === 'warning' ? 'text-amber-600' :
+                                                        'text-blue-600'
+                                            }`}>
+                                            {log.type}
+                                        </span>
+                                    </div>
+                                    <div className="text-sm text-slate-700 leading-relaxed">
+                                        {log.message}
+                                    </div>
+                                </div>
                             </div>
                         </div>
-
-                        <div className={`leading-relaxed font-black uppercase tracking-tight text-sm ${log.type === 'error' ? 'text-red-900' :
-                            log.type === 'success' ? 'text-green-900' :
-                                log.type === 'warning' ? 'text-amber-900' :
-                                    'text-black'
-                            }`}>
-                            {log.message}
-                        </div>
-                    </div>
-                ))}
+                    );
+                })}
                 <div ref={endRef} />
             </div>
         </div>

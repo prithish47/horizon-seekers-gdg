@@ -4,7 +4,7 @@ import PaymentIntentPanel from './components/PaymentIntentPanel';
 import StateTimelinePanel from './components/StateTimelinePanel';
 import LogConsolePanel from './components/LogConsolePanel';
 import SummaryTable from './components/SummaryTable';
-import { RefreshCw, ShieldCheck, Zap } from 'lucide-react';
+import { RefreshCw, ShieldCheck, Zap, Activity } from 'lucide-react';
 
 export default function App() {
   const [transactions, setTransactions] = useState([]);
@@ -64,10 +64,17 @@ export default function App() {
   };
 
   const processPayment = async (key, amount, outcome) => {
+    // Validate amount on frontend too
+    if (!amount || amount <= 0) {
+      addLog('Invalid amount - please enter a valid amount', 'error');
+      setCurrentStatus('FAILED');
+      return;
+    }
+
     setIsProcessing(true);
     setCurrentStatus('PROCESSING');
 
-    addLog(`Initiating request: ${key.slice(0, 8)}...`, 'info');
+    addLog(`Initiating payment request...`, 'info');
 
     setTransactions(prev => {
       if (!prev.find(t => t.key === key)) {
@@ -94,10 +101,27 @@ export default function App() {
     setIsProcessing(false);
 
     if (result.status === 504) {
-      addLog('Network drop simulated. Response lost.', 'warning');
+      addLog('Network timeout - response lost but payment may have succeeded', 'warning');
       setCanRetry(true);
       updateTransactionHistory(key, null, amount, 'NETWORK_ERROR');
       setCurrentStatus('RETRY');
+      return;
+    }
+
+    // Handle amount mismatch error (409 conflict)
+    if (result.status === 409 && result.data?.state === 'CONFLICT') {
+      addLog(`Error: ${result.data.message}`, 'error');
+      setCurrentStatus('FAILED');
+      setCanRetry(false); // Don't allow retry with different amount
+      updateTransactionHistory(key, result.data, amount, 'CONFLICT');
+      return;
+    }
+
+    // Handle invalid amount error (400)
+    if (result.status === 400) {
+      addLog(`Error: ${result.data?.message || result.error}`, 'error');
+      setCurrentStatus('FAILED');
+      setCanRetry(false);
       return;
     }
 
@@ -105,18 +129,22 @@ export default function App() {
       const data = result.data;
 
       if (data.state === 'FAILED') {
-        addLog(`Transaction failed: ${data.message}`, 'error');
+        addLog(`Payment failed: ${data.message}`, 'error');
         setCurrentStatus('FAILED');
+      } else if (data.state === 'CONFLICT') {
+        addLog(`Conflict: ${data.message}`, 'error');
+        setCurrentStatus('FAILED');
+        setCanRetry(false);
       } else {
-        addLog(`Transaction successful. ${data.message}`, 'success');
+        addLog(`Payment successful - Transaction ID: ${data.transaction_id?.slice(0, 8)}...`, 'success');
         setCurrentStatus('COMPLETED');
       }
 
       if (data.message && data.message.includes("already performed")) {
-        addLog('Idempotency check: duplicate request prevented.', 'success');
+        addLog('Idempotency check passed - duplicate request prevented', 'success');
       }
 
-      setCanRetry(true);
+      setCanRetry(data.state !== 'CONFLICT');
       updateTransactionHistory(key, data, amount);
     } else {
       addLog(`Error: ${result.error}`, 'error');
@@ -135,65 +163,72 @@ export default function App() {
 
   const handleRetry = (amount, outcome) => {
     if (currentKey) {
-      addLog(`Retrying request: ${currentKey.slice(0, 8)}...`, 'info');
+      addLog(`Retrying with same idempotency key...`, 'info');
       processPayment(currentKey, amount, outcome);
     }
   };
 
   return (
-    <div className="max-w-[1400px] mx-auto min-h-screen p-8 md:p-12 lg:p-20 bg-white">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 mb-20 border-b-4 border-black pb-12">
-        <div className="flex items-center gap-6">
-          <ShieldCheck className="w-10 h-10 text-black" strokeWidth={3} />
-          <div>
-            <h1 className="text-4xl font-black text-black tracking-tight uppercase">
-              Idempotent Engine Simulator
-            </h1>
-          </div>
-        </div>
-        <div className="flex items-center gap-4">
-          <button
-            onClick={handleNewTransaction}
-            className="minimal-btn flex items-center gap-3 text-sm"
-          >
-            <RefreshCw className={`w-4 h-4 ${isProcessing ? 'animate-spin' : ''}`} />
-            New Transaction
-          </button>
-          <div className="px-6 py-3 border-4 border-black bg-green-600 text-white flex items-center gap-3">
-            <div className="w-2.5 h-2.5 bg-white rounded-full animate-pulse" />
-            <span className="text-xs font-black uppercase tracking-[0.2em]">System Live</span>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+      {/* Header */}
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <ShieldCheck className="w-6 h-6 text-blue-600" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-slate-900">
+                  Payment Idempotency Simulator
+                </h1>
+                <p className="text-sm text-slate-500">Real-time demonstration of exactly-once semantics</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleNewTransaction}
+                className="btn-secondary flex items-center gap-2 text-sm"
+                disabled={isProcessing}
+              >
+                <RefreshCw className={`w-4 h-4 ${isProcessing ? 'animate-spin' : ''}`} />
+                New Transaction
+              </button>
+              <div className="flex items-center gap-2 px-4 py-2 bg-green-50 border border-green-200 rounded-lg">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                <span className="text-sm font-semibold text-green-700">System Active</span>
+              </div>
+            </div>
           </div>
         </div>
       </header>
 
-      <main className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
-        <div className="lg:col-span-4 space-y-12">
-          <PaymentIntentPanel
-            onInitiate={handleInitiate}
-            onRetry={handleRetry}
-            isProcessing={isProcessing}
-            canRetry={canRetry}
-            currentKey={currentKey}
-          />
-          <div className="border-4 border-black p-10">
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-6 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Column - Controls & State */}
+          <div className="lg:col-span-1 space-y-6">
+            <PaymentIntentPanel
+              onInitiate={handleInitiate}
+              onRetry={handleRetry}
+              isProcessing={isProcessing}
+              canRetry={canRetry}
+              currentKey={currentKey}
+            />
             <StateTimelinePanel state={currentStatus} />
           </div>
-        </div>
 
-        <div className="lg:col-span-8 space-y-12">
-          <div className="h-[500px] border-4 border-black">
-            <LogConsolePanel logs={logs} />
-          </div>
-          <div className="border-4 border-black overflow-hidden">
+          {/* Right Column - Logs & History */}
+          <div className="lg:col-span-2 space-y-6">
+            <div className="h-[400px]">
+              <LogConsolePanel logs={logs} />
+            </div>
             <SummaryTable transactions={transactions} />
           </div>
         </div>
       </main>
 
-      <footer className="mt-20 pt-12 border-t border-black flex flex-col md:flex-row justify-between items-center gap-4 text-black text-[12px] uppercase font-black tracking-[0.4em]">
-        <span>Secure Idempotent Processing</span>
-        <span>Idempotent Engine Simulator Lab</span>
-      </footer>
     </div>
   );
 }
