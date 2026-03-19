@@ -1,16 +1,29 @@
-# React + Vite
+# Fail-Safe Payment Processor - Client
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This is the React frontend for the **Fail-Safe Payment Processor**. It provides a dashboard to visualize payment processing, real-time logs, and state transitions.
 
-Currently, two official plugins are available:
+## 🚀 Getting Started
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### Prerequisites
+- Node.js 18+
 
-## React Compiler
+### Setup
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+2. Start the development server:
+   ```bash
+   npm run dev
+   ```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 🛠️ Tech Stack
+- **Framework**: React 19 + Vite
+- **Styling**: Tailwind CSS
+- **Icons**: Lucide-React
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## 🧩 Dashboard Features
+- **Payment Intent Panel**: Initiate payments with custom amounts and simulation modes.
+- **State Timeline**: Visual feedback on the transaction lifecycle (CREATED → PROCESSING → COMPLETED/FAILED).
+- **Log Console**: Real-time server-side and client-side logging of events.
+- **Summary Table**: Historical view of processed payments.

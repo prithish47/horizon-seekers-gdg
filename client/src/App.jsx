@@ -180,9 +180,9 @@ export default function App() {
               </div>
               <div>
                 <h1 className="text-xl font-bold text-slate-900">
-                  Payment Idempotency Simulator
+                  Fail-Safe Payment Processor
                 </h1>
-                <p className="text-sm text-slate-500">Real-time demonstration of exactly-once semantics</p>
+                <p className="text-sm text-slate-500">Ensuring exactly-once execution and transaction integrity</p>
               </div>
             </div>
 
